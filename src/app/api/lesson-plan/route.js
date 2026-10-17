@@ -100,7 +100,7 @@ Format JSON yang diwajibkan:
 HANYA kembalikan JSON yang sah tanpa tanda petik \`\`\`json.`;
 
           const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash", // resilient endpoint supporting Gemini 3.8 / 2.5 flash
+            model: "gemini-3.8-flash",
             contents: prompt,
           });
 

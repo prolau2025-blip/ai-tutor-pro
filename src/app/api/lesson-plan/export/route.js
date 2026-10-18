@@ -3,8 +3,6 @@ import { getDatabase } from "@/lib/db/db";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
-export const dynamic = "force-dynamic";
-
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);

@@ -3,8 +3,9 @@
 -- Compliant with Malaysian PDPA 2010, Child Act 2001, and KPM Circulars.
 -- =============================================================================
 
--- Enable UUID extension
+-- Enable UUID & Crypto extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 1. Organizations (Schools, Tuition Centers, JPN Districts)
 CREATE TABLE IF NOT EXISTS organizations (
@@ -153,6 +154,41 @@ CREATE TABLE IF NOT EXISTS session_billing (
 );
 
 -- =============================================================================
+-- ROW LEVEL SECURITY (RLS) & ACCESS POLICIES
+-- Ensures anon and authenticated clients can read/write without permission errors
+-- =============================================================================
+
+-- Grant permissions to public schema
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA public TO anon, authenticated, service_role;
+
+-- Alter default privileges for future tables
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO anon, authenticated, service_role;
+
+-- Configure RLS policies for each table
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOR t IN 
+    SELECT table_name FROM information_schema.tables 
+    WHERE table_schema = 'public' 
+    AND table_name IN (
+      'organizations', 'users', 'kyc_verifications', 'legal_agreements',
+      'dskp_standards', 'lesson_plans', 'sessions', 'session_transcripts',
+      'pbd_evaluations', 'wallet_transactions', 'session_billing'
+    )
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', t);
+    EXECUTE format('DROP POLICY IF EXISTS "Public all access on %I" ON public.%I;', t, t);
+    EXECUTE format('CREATE POLICY "Public all access on %I" ON public.%I FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);', t, t);
+  END LOOP;
+END $$;
+
+-- =============================================================================
 -- SEED DATA (Malaysian KPM Schools, Teacher, DSKP Standards)
 -- =============================================================================
 
@@ -160,18 +196,18 @@ INSERT INTO organizations (id, name, code, type, credit_balance_myr)
 VALUES 
   ('ORG-SK-TAMAN-MELAWATI', 'SK Taman Melawati (KPM)', 'BBA0012', 'GOVERNMENT_SCHOOL', 250.00),
   ('ORG-PUSAT-TUKS-PERDANA', 'Pusat Tuisyen Bintang Perdana', 'PT-88321', 'TUITION_CENTER', 100.00)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, credit_balance_myr = EXCLUDED.credit_balance_myr;
 
 INSERT INTO users (id, org_id, full_name, email, phone_number, password_hash, role, is_verified)
 VALUES
   ('USR-ADMIN-001', 'ORG-SK-TAMAN-MELAWATI', 'Cikgu Ahmad Farhan (Guru Penolong Kanan)', 'admin@aitutor.edu.my', '+60123456789', '$2a$10$w09aV8y3oHhU6u9k8M2b8Oq8j5T8v9F0k3J2L1M0N9P8Q7R6S5T4U', 'ADMIN', TRUE),
   ('USR-TEACHER-001', 'ORG-SK-TAMAN-MELAWATI', 'Puan Siti Nurhaliza binti Zulkifli', 'siti.zulkifli@moe-dl.edu.my', '+60198765432', '$2a$10$w09aV8y3oHhU6u9k8M2b8Oq8j5T8v9F0k3J2L1M0N9P8Q7R6S5T4U', 'TEACHER', TRUE)
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET full_name = EXCLUDED.full_name, is_verified = EXCLUDED.is_verified;
 
 INSERT INTO kyc_verifications (id, user_id, full_name, masked_ic, id_hash_sha256, status)
 VALUES
   ('KYC-001', 'USR-TEACHER-001', 'Puan Siti Nurhaliza binti Zulkifli', '910314-XX-5142', 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'VERIFIED')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status;
 
 INSERT INTO dskp_standards (id, subject, level, theme, topic, code_standard, content_standard, learning_standards_json, pbd_rubrics_json)
 VALUES
@@ -197,4 +233,4 @@ VALUES
   '["2.1.1 Menambah hingga tiga nombor melibatkan nombor bulat, pecahan wajar dan nombor bercampur yang penyebutnya hingga 10."]'::jsonb,
   '{"TP1": "Membaca ayat matematik pecahan.", "TP2": "Menyatakan langkah penambahan berbeza penyebut.", "TP3": "Menyelesaikan penambahan pecahan.", "TP4": "Menyelesaikan masalah rutin.", "TP5": "Menyelesaikan masalah pelbagai strategi.", "TP6": "Menyelesaikan masalah bukan rutin secara kreatif."}'::jsonb
 )
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET topic = EXCLUDED.topic, content_standard = EXCLUDED.content_standard;

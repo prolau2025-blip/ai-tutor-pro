@@ -34,8 +34,8 @@ export default function AdminDashboardPage() {
         fetch("/api/admin/users"),
       ]);
 
-      const overviewData = await overviewRes.json();
-      const usersData = await usersRes.json();
+      const overviewData = await overviewRes.json().catch(() => ({}));
+      const usersData = await usersRes.json().catch(() => ({}));
 
       if (overviewData.success) {
         setStats(overviewData.stats);

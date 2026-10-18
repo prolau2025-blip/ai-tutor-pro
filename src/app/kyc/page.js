@@ -20,8 +20,8 @@ export default function KycVerificationPage() {
     async function loadKyc() {
       try {
         const res = await fetch("/api/kyc");
-        const json = await res.json();
-        if (json.success && json.data) {
+        const json = await res.json().catch(() => ({}));
+        if (json && json.success && json.data) {
           if (json.data.is_verified) {
             setKycStatus("VERIFIED");
             setMaskedIc(json.data.kyc_record?.masked_ic || "910314-XX-5142");

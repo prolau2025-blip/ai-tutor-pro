@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDatabase } from "@/lib/db/db";
+import { getDatabase, safeJsonParse } from "@/lib/db/db";
 import { GoogleGenAI } from "@google/genai";
 import { v4 as uuidv4 } from "uuid";
 
@@ -15,12 +15,12 @@ export async function GET() {
 
     const formatted = rows.map((r) => ({
       ...r,
-      analyze_learners: JSON.parse(r.analyze_learners_json || "{}"),
-      state_objectives: JSON.parse(r.state_objectives_json || "{}"),
-      select_media: JSON.parse(r.select_media_json || "{}"),
-      utilize_materials: JSON.parse(r.utilize_materials_json || "{}"),
-      require_participation: JSON.parse(r.require_participation_json || "{}"),
-      evaluate_revise: JSON.parse(r.evaluate_revise_json || "{}"),
+      analyze_learners: safeJsonParse(r.analyze_learners_json, {}),
+      state_objectives: safeJsonParse(r.state_objectives_json, {}),
+      select_media: safeJsonParse(r.select_media_json, {}),
+      utilize_materials: safeJsonParse(r.utilize_materials_json, {}),
+      require_participation: safeJsonParse(r.require_participation_json, {}),
+      evaluate_revise: safeJsonParse(r.evaluate_revise_json, {}),
     }));
 
     return NextResponse.json({ success: true, data: formatted });

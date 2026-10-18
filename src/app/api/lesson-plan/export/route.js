@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getDatabase } from "@/lib/db/db";
+import { getDatabase, safeJsonParse } from "@/lib/db/db";
 import { Document, Packer, Paragraph, TextRun, HeadingLevel, Table, TableRow, TableCell, WidthType, BorderStyle } from "docx";
 import { PDFDocument, rgb, StandardFonts } from "pdf-lib";
 
@@ -21,7 +21,6 @@ export async function GET(req) {
       `).get(planId);
     }
 
-    // If no plan id provided or not found, get most recent or fallback to sample
     if (!plan) {
       plan = db.prepare(`
         SELECT lp.*, ds.topic as dskp_topic, ds.content_standard, ds.code_standard, ds.learning_standards_json, ds.pbd_rubrics_json
@@ -37,12 +36,12 @@ export async function GET(req) {
     const topic = plan?.dskp_topic || "Organ Pernafasan Haiwan";
     const duration = plan?.target_duration_minutes || 30;
 
-    const analyze = JSON.parse(plan?.analyze_learners_json || '{"general_characteristics":"Murid Tahun 4 berumur 10 tahun"}');
-    const objectives = JSON.parse(plan?.state_objectives_json || '{"abcd_objectives":["Mengenal pasti organ pernafasan haiwan"]}');
-    const media = JSON.parse(plan?.select_media_json || '{"digital_media":["Google Meet AI Live Teacher"]}');
-    const materials = JSON.parse(plan?.utilize_materials_json || '{"set_induksi":"Teka teki haiwan"}');
-    const participation = JSON.parse(plan?.require_participation_json || '{"student_activity":"Bersoal jawab"}');
-    const evaluate = JSON.parse(plan?.evaluate_revise_json || '{"assessment_method":"Pentaksiran Bilik Darjah PBD"}');
+    const analyze = safeJsonParse(plan?.analyze_learners_json, { general_characteristics: "Murid Tahun 4 berumur 10 tahun" });
+    const objectives = safeJsonParse(plan?.state_objectives_json, { abcd_objectives: ["Mengenal pasti organ pernafasan haiwan"] });
+    const media = safeJsonParse(plan?.select_media_json, { digital_media: ["Google Meet AI Live Teacher"] });
+    const materials = safeJsonParse(plan?.utilize_materials_json, { set_induksi: "Teka teki haiwan" });
+    const participation = safeJsonParse(plan?.require_participation_json, { student_activity: "Bersoal jawab" });
+    const evaluate = safeJsonParse(plan?.evaluate_revise_json, { assessment_method: "Pentaksiran Bilik Darjah PBD" });
 
     if (format === "pdf") {
       // Generate Official KPM e-RPH PDF
